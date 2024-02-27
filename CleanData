@@ -1,0 +1,287 @@
+select * from NashvilleHousing 
+
+
+
+/* 
+
+
+cleaning data in sql queries 
+
+*/ 
+
+
+---------------------------------------------------------------------------------------------------------
+
+
+-- standardize Data Format 
+
+-- (he want to convert the sale date to date with out the time but i allredy got it here but i will but what he did anyway) 
+
+
+
+-- select SaleDate , CONVERT(date, SaleDate)
+-- from NashvilleHousing 
+
+-- update NashvilleHousing
+-- set SaleDate = CONVERT(date , SaleDate)
+
+-- this might work, if it did not try the next one 
+
+
+
+-- alter table Nashvillehousing
+-- add SaleDateConverted Date; 
+
+
+-- update Nashvillehousing 
+-- set SaleDateConverted = CONVERT(Date, SaleDate)
+
+---------------------------------------------------------------------------------------------------------
+
+-- populate property address data 
+
+-- there is a lot of null data in the property address and this cant be good, because every property should have address, so we have decided to 
+-- but populate the null value acording to parcelID, in the data there is some property has the same parcelID and the same propertyaddress,
+-- so we are going to populate the null in propertyaddress with the same parcelID address  (watch the video if u did not get it)
+
+select PropertyAddress 
+from NashvilleHousing 
+
+select * from NashvilleHousing 
+where propertyaddress is null 
+
+select a.parcelID , b.parcelID, a.propertyaddress, b.propertyaddress, isnull(a.propertyaddress , b.propertyaddress)
+from NashvilleHousing a 
+join NashvilleHousing b 
+on a.parcelID = b.parcelID 
+and a.uniqueID <> b.uniqueID 
+where a.PropertyAddress is null 
+
+update a 
+set propertyaddress = isnull(a.propertyaddress , b.propertyaddress)
+from NashvilleHousing a 
+join NashvilleHousing b 
+on a.parcelID = b.parcelID 
+and a.uniqueID <> b.uniqueID 
+where a.PropertyAddress is null 
+
+select propertyaddress from nashvillehousing 
+where propertyaddress is null 
+
+-- there is no null value in the propertyaddress rn, problem solved 
+
+
+
+
+---------------------------------------------------------------------------------------------------------
+
+-- breaking out address into individual columns ( address , city , state)  
+
+select propertyaddress 
+from nashvillehousing
+
+select 
+SUBSTRING(propertyaddress, 1, CHARINDEX(',' , propertyaddress) -1 ) as propertysplitaddress
+,SUBSTRING(propertyaddress, CHARINDEX(',' , propertyaddress)+1 , LEN(propertyaddress)) as propertysplitcity
+
+from nashvillehousing 
+
+
+ALTER table nashvillehousing
+add propertysplitaddress NVARCHAR(225); 
+
+update nashvillehousing
+set propertysplitaddress = SUBSTRING(propertyaddress, 1, CHARINDEX(',' , propertyaddress) -1 )
+
+
+alter table nashvillehousing
+add propertysplitcity NVARCHAR(255); 
+
+update nashvillehousing
+set propertysplitcity = SUBSTRING(propertyaddress, CHARINDEX(',' , propertyaddress)+1 , LEN(propertyaddress)) 
+
+
+
+select * 
+from nashvillehousing 
+
+
+
+-- there is a simpler way,  we are ging to use it on owneraddress, something called  (parsename)
+
+select owneraddress
+from nashvillehousing
+
+select 
+
+PARSENAME(owneraddress, 1)
+
+
+from nashvillehousing
+
+-- here nothing will happen because parsename only split by (.) 
+
+-- so thats what we are going to do (use replace)
+
+
+select 
+
+PARSENAME(REPLACE(owneraddress , ',' , '.' ), 1)
+,PARSENAME(REPLACE(owneraddress , ',' , '.' ), 2)
+,PARSENAME(REPLACE(owneraddress , ',' , '.' ), 3)
+
+
+from nashvillehousing
+
+-- in parsename when u put 1, its gonna start from the right to the left, so you need to vhange the order 
+
+
+select 
+
+PARSENAME(REPLACE(owneraddress , ',' , '.' ), 3)
+,PARSENAME(REPLACE(owneraddress , ',' , '.' ), 2)
+,PARSENAME(REPLACE(owneraddress , ',' , '.' ), 1)
+
+
+from nashvillehousing
+
+
+
+alter table Nashvillehousing
+add ownersplitaddress NVARCHAR(255); 
+
+update nashvillehousing
+set ownersplitaddress = PARSENAME(REPLACE(owneraddress , ',' , '.' ), 3) 
+
+
+
+
+alter table Nashvillehousing
+add ownersplitcity NVARCHAR(255); 
+
+update nashvillehousing
+set ownersplitcity = PARSENAME(REPLACE(owneraddress , ',' , '.' ), 2)
+
+
+
+alter table Nashvillehousing
+add ownersplitstate NVARCHAR(255); 
+
+update nashvillehousing
+set ownersplitstate = PARSENAME(REPLACE(owneraddress , ',' , '.' ), 1)
+
+
+select * from nashvillehousing
+
+
+
+---------------------------------------------------------------------------------------------------------
+
+
+-- change Y and N to yes and no in " sold vacant" field 
+
+
+
+select soldasvacant
+from nashvillehousing
+group by soldasvacant 
+
+-- or 
+
+select distinct(soldasvacant)
+from nashvillehousing
+
+
+
+select distinct(soldasvacant) , count(soldasvacant)
+from nashvillehousing
+group by soldasvacant
+order by 2 
+
+
+
+select soldasvacant 
+, case 
+when soldasvacant = 'Y' then 'Yes'
+when soldasvacant = 'N' then 'No'
+else soldasvacant
+end 
+from nashvillehousing 
+
+
+update nashvillehousing 
+set soldasvacant = case 
+when soldasvacant = 'Y' then 'Yes'
+when soldasvacant = 'N' then 'No'
+else soldasvacant
+end 
+
+
+
+
+---------------------------------------------------------------------------------------------------------
+
+-- remove duplicates  
+
+select *
+
+from nashvillehousing 
+
+
+select *,
+ROW_NUMBER() over (
+    partition by parcelID , propertyaddress , saleprice, saledate, legalreference
+    order by uniqueID
+) row_num
+
+from nashvillehousing 
+-- where row_num >1 , we cant use this here because we create rwo_num in the same quiery, that why we have to use CTE 
+
+
+with Row_numCTE as (
+    select *,
+ROW_NUMBER() over (
+    partition by parcelID , propertyaddress , saleprice, saledate, legalreference
+    order by uniqueID
+) row_num
+
+from nashvillehousing 
+)
+
+-- select * 
+-- from Row_numCTE 
+-- where row_num > 1 
+-- order by propertyaddress 
+-- (this wil show u the duplicates row) 
+
+
+delete 
+from Row_numCTE
+where row_num > 1 
+
+
+-- after this query will delete every duplicate row 
+
+
+---------------------------------------------------------------------------------------------------------
+
+
+-- delete unused columns 
+
+-- (advice, usually they dont delect columns from the row data, sometimes they delete from view tables, please do not delete any columns 
+-- before asking )
+
+select * 
+from nashvillehousing 
+
+
+ALTER table nashvillehousing 
+drop COLUMN owneraddress , taxdistrict , propertyaddress 
+
+
+
+
+
+
+
+
